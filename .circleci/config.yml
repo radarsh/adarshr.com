@@ -12,18 +12,19 @@ jobs:
             - checkout
             - restore_cache:
                 keys:
-                    - v1-dependencies-{{ checksum "build.gradle" }}
-                    - v1-dependencies-
+                    - v4-cache-{{ checksum "build.gradle" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
+                    - v4-cache-
             - run:
                 name: Download dependencies
-                command: ./gradlew dependencies --no-daemon --console=plain
+                command: ./gradlew downloadDependencies --no-daemon
             - save_cache:
                 paths:
                     - ~/.m2
-                key: v1-dependencies-{{ checksum "build.gradle" }}
+                    - ~/.gradle
+                key: v4-cache-{{ checksum "build.gradle" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
             - run:
                 name: Run tests
-                command: ./gradlew clean test --no-daemon --console=plain
+                command: ./gradlew test --no-daemon
             - run:
                 name: Save reports
                 command: |
@@ -36,9 +37,44 @@ jobs:
                 path: ~/results
             - store_artifacts:
                 path: ~/reports
+    publish:
+        docker:
+            - image: circleci/openjdk:8-jdk
+        working_directory: ~/repo
+        environment:
+            JVM_OPTS: -Xmx3200m
+            TERM: dumb
+        steps:
+            - checkout
+            - restore_cache:
+                keys:
+                    - v4-cache-{{ checksum "build.gradle" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
+                    - v4-cache-
+            - run:
+                name: Assemble artefacts
+                command:
+                    ./gradlew assemble --no-daemon
+            - setup_remote_docker:
+                docker_layer_caching: true
+            - run:
+                name: Build Docker image
+                command: |
+                    docker build . -t adarshr/adarshr.com
+            - run:
+                name: Publish Docker image
+                command: |
+                    docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+                    docker push adarshr/adarshr.com
 
 workflows:
     version: 2
-    build:
+    build-and-publish:
         jobs:
             - build
+            - publish:
+                requires:
+                    - build
+                filters:
+                    branches:
+                        only: master
+

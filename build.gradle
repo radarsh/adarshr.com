@@ -8,6 +8,7 @@ plugins {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -23,4 +24,16 @@ dependencies {
 
 bootRun {
     systemProperty 'spring.profiles.active', 'dev'
+}
+
+bootJar {
+    archiveName "${project.name}.jar"
+}
+
+task downloadDependencies() {
+    description 'Download all dependencies to the Gradle cache'
+    group 'help'
+    doLast {
+        configurations.findAll { it.canBeResolved }.files
+    }
 }

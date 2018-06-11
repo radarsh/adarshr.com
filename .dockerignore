@@ -1,0 +1,7 @@
+src
+build
+.idea
+gradle
+.gradle
+.circleci
+!build/libs/adarshr.com.jar
